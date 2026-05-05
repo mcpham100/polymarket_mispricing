@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS markets( --IF NOT EXISTS allows for running file multiple times without issues
     market_id TEXT PRIMARY KEY, --API treats market_id as a string despite storing only ints
-    question VARCHAR,
-    category VARCHAR,
+    question TEXT,
+    category TEXT,
     end_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP 
 );
 
@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS snapshots(
     volume FLOAT,
     liquidity FLOAT,
     spread FLOAT,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP --default now; no need to pass param everytime
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, --default now; no need to pass param everytime
+    end_date TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE IF NOT EXISTS mispricing_events(
