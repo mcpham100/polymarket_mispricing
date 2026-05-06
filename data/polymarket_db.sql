@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS snapshots(
     market_id TEXT REFERENCES markets(market_id), --foreign key attribute(s) that link two tables
     yes_price FLOAT,
     no_price FLOAT,
-    volume FLOAT,
     liquidity FLOAT,
+    volume FLOAT,
     spread FLOAT,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, --default now; no need to pass param everytime
-    end_date TIMESTAMP WITH TIME ZONE
+    end_date TIMESTAMP WITH TIME ZONE,
 );
 
 CREATE TABLE IF NOT EXISTS mispricing_events(
