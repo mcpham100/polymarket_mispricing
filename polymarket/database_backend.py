@@ -1,18 +1,28 @@
 
 '''
-essentially the backend connecting the db to the collection scripts
-connecting a PostgreSQL database in Python
-
-REMINDER TO PUT .ENV IN .GITIGNORE TO NOT PUSH PASSWORDS INTO REPO
-
+Backend connecting the PostgreSQL databse to the data collection pipeline.
+Provides functions to establish connections and perform SQL operations on polymarket_db database.
 ''' 
+
 # importing libraries
 import psycopg2
 import sys
 from dotenv import load_dotenv
 import os
+import logging
+
 
 def get_connection():
+    '''
+    Establishes and returns a connection to the PostgreSQL database.
+    
+    Loads credentials from a .env file to avoid hardcoding sensitive information.
+    Exits the program if a connection cannot be established.
+    
+    Returns:
+        conn (psycopg2.connection): Active database connection object to be 
+        passed into insert and query functions.
+    '''
     # load .env file; accesses secret/information not wanted to be pushed into repo
     load_dotenv()
 
@@ -34,18 +44,36 @@ def get_connection():
         )
 
     # raise error and exit
+    # use except with OperationalError from psycopg2 documentation
     except psycopg2.OperationalError as e:
-        print(f'Connection failed: {e}')
+        logging.error(f'Connection to Postgre failed: {e}')
         sys.exit(1) # exits; prevents further execution
 
+    # return connection to be used in other functions that write into the DB
     return conn
 
+
 def insert_market(conn, market_data):
+    '''
+    Inserts a single market record into the markets table.
+    
+    Skips insertion silently if the market_id already exists (ON CONFLICT DO NOTHING),
+    preventing duplicate entries across collection runs.
+
+    Args:
+        conn (psycopg2.connection): Active database connection from get_connection().
+        market_data (dict): Market metadata with keys:
+            - market_id (str): Unique Polymarket market identifier
+            - question (str): The market's question text
+            - category (str or None): Market category, currently None pending implementation
+            - end_date (str): Market resolution date from Polymarket
+    '''
     # conn.cursor will return a cursor object, you can use this query to perform queries
     cursor = conn.cursor()
 
     try:
     # cursor.execute(SQL) allows for SQL queries within Python
+    # query to add a row with given attributes
         cursor.execute("""
                     INSERT INTO markets (market_id, question, category, end_date)
                     VALUES (%(market_id)s, %(question)s, %(category)s, %(end_date)s)
@@ -60,20 +88,37 @@ def insert_market(conn, market_data):
 
     # raise error and exit
     except psycopg2.Error as e:
-        print(f"Insert market failed: {e}")
-        conn.rollback()
-        sys.exit(1)
+        logging.error(f'Inserting into market failure: {e}')
+        conn.rollback() # rollback changes (does not commit them)
 
     finally:
         # close to prevent memory leaks (deletes cursor object)
         cursor.close()
 
+
 def insert_snapshot(conn, snapshot_data):
+    '''
+    Inserts a single price snapshot into the snapshots table.
+    
+    Called every collection run (~5 min intervals) per market to build
+    the time-series data used for mispricing decay analysis.
+
+    Args:
+        conn (psycopg2.connection): Active database connection from get_connection().
+        snapshot_data (dict): Snapshot data with keys:
+            - market_id (str): Foreign key referencing markets table
+            - yes_price (float): Midpoint price of the YES outcome token from CLOB API
+            - no_price (float): Midpoint price of the NO outcome token from CLOB API
+            - volume (float): Total trading volume of the market
+            - liquidity (float): Current liquidity of the market
+            - spread (float): Bid-ask spread of the market
+    '''
     # conn.cursor will return a cursor object, you can use this query to perform queries
     cursor = conn.cursor()
 
     try:
     # cursor.execute(SQL) allows for SQL queries within Python
+    # query to add a row with given attributes
         cursor.execute("""
                     INSERT INTO snapshots (market_id, yes_price, no_price, volume, liquidity, spread)
                     VALUES (%(m_id)s, %(yes)s, %(no)s, %(vol)s, %(liq)s, %(spread)s)
@@ -85,21 +130,35 @@ def insert_snapshot(conn, snapshot_data):
         
         conn.commit() # no need to check for conflicts as only one write at a time (no concurrency occuring)
 
-    # raise error and exit
+    # raise error and rollback
     except psycopg2.Error as e:
-        print(f"Insert market failed: {e}")
+        logging.error(f'Inserting into snapshot failure: {e}')
         conn.rollback()
-        sys.exit(1)
 
     finally:
         # close to prevent memory leaks (deletes cursor object)
         cursor.close()
 
 def get_recent_snapshots(conn, market_id):
+    '''
+    Retrieves the 100 most recent snapshots for a given market.
+    
+    Used by misprice_detector.py to analyze price history and model
+    mispricing decay curves over time.
+
+    Args:
+        conn (psycopg2.connection): Active database connection from get_connection().
+        market_id (str): Unique Polymarket market identifier to query snapshots for.
+
+    Returns:
+        list of tuples: Up to 100 rows from the snapshots table ordered by
+        most recent timestamp first. Returns None if an error occurs.
+    '''
 
     cursor = conn.cursor()
 
     try:
+        # query to read most recent 100 rows from snapshots
         cursor.execute("""
                        SELECT * 
                        FROM snapshots 
@@ -109,18 +168,14 @@ def get_recent_snapshots(conn, market_id):
                         """,
                         (market_id, )) # pass as a tuple
         
+        # return the read rows
         return cursor.fetchall()
     
+    # error with reading
     except psycopg2.Error as e:
-        print(f"Insert market failed: {e}")
+        logging.error(f'Accessing recent snapshots failure: {e}')
         conn.rollback()
-        sys.exit(1)
 
     finally:
+        # close to prevent memory leaks
         cursor.close()
-
-# testing
-
-# conn1 = get_connection()
-# get_recent_snapshots(conn1, 'test123')
-# print('success')
