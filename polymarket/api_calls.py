@@ -19,10 +19,15 @@ import time
 # import database_backend
 from polymarket import database_backend as db
 
-def gamma_markets():
-    
+# log to catch any errors when running script
+logging.basicConfig(filename='collector.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
+
+
+# max_pages paramater used in testing; not actually used in deployment
+def gamma_markets(max_pages=None):
     # define next_cursor (part of Gamma API to be used to load next page)
     next_cursor = None
+    page_count = 0
 
     # loop through all pages 
     while True:
@@ -39,7 +44,8 @@ def gamma_markets():
         try:
             # call gamma api with necessary parameters
             response = requests.get("https://gamma-api.polymarket.com/markets/keyset",
-            params = params
+            params = params,
+            timeout=10 # add a timeout to prevent connections waiting indefinitely
             )
 
             # time delay to prevent rate limits; 300 req/10s; we make 100 req per call
@@ -55,15 +61,17 @@ def gamma_markets():
             # loop through the markets of the page
             for m in markets:
                 try:
-                    # buld market_data; default values in case key is not found
-                    market_id = m.get('id', None)
-                    question = m.get('id', None)
+                    # buld market_data; default values for floats if not found
+                    # keep market_id, question, and tokens indexing so it can trigger the except error
+                    market_id = m['id']
+                    question = m['question']
                     category = None
                     liquidity = m.get('liquidity', 0.0)
                     volume = m.get('volume', 0.0)
                     spread = m.get('spread', 0.0)
                     end_date = m.get('endDate', None)
-                    tokens = json.loads(m.get('clobTokenIds', '[]')) # convert tokens to a list
+                    tokens = json.loads(m['clobTokenIds']) # convert tokens to a list
+
                     market_data.append((market_id, question, category, liquidity, volume, spread, end_date, tokens))
                 
                 # error if data not found or can't be decoded (not proper JSON format) or found, log error
@@ -72,6 +80,10 @@ def gamma_markets():
 
             # create generator; returns market_data then re-runs
             yield market_data # returns a list of tuples [(market1), (market2)]
+
+            page_count += 1
+            if max_pages is not None and page_count >= max_pages:
+                break
 
             # break out of loop once reaching the last page
             if not next_cursor:
@@ -96,7 +108,8 @@ def clob_midpoints(tokens):
         for chunks in token_chunk:
             response = requests.post(
                     "https://clob.polymarket.com/midpoints",
-                    json=[{"token_id": token} for token in chunks]) # token_ids takes in a list of strings
+                    json=[{"token_id": token} for token in chunks],
+                    timeout=10) # add a timeout to prevent connections waiting indefinitely # token_ids takes in a list of strings
             
             # check for response issues
             response.raise_for_status()
@@ -109,17 +122,12 @@ def clob_midpoints(tokens):
 
     # raise error if CLOB api call fails, log error
     except requests.exceptions.RequestException as e:
-        logging.error(f'CLOB API request failed: {e}')
         return dict()
     
-
-def collect():
-
-    # get db connection
-    conn = db.get_connection()
-
+# max_pages paramater used in testing; not actually used in deployment
+def collect(conn, max_pages=None):
     # call Gamma API to get market data
-    for page in gamma_markets():
+    for page in gamma_markets(max_pages=max_pages):
 
         tokens = [] # batch of tokens for each page
         # loop through each market of the page
@@ -157,6 +165,3 @@ def collect():
                              'liquidity': liquidity, 'volume': volume, 'spread': spread}
 
             db.insert_snapshot(conn, snapshot_data)
-
-    # close connection to prevent data leaks
-    conn.close()
