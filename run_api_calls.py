@@ -11,7 +11,7 @@ import sys
 
 # import api_calls from polymarket folder
 from polymarket import api_calls
-from polymarket import datbase_backend as db
+from polymarket import database_backend as db
 
 # log to catch any errors when running script
 logging.basicConfig(filename='collector.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
