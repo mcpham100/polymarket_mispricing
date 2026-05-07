@@ -29,7 +29,7 @@ def get_connection():
     # obtain .env info
     host = os.getenv("HOST")
     dbname = os.getenv("DBNAME")
-    user = os.getenv("USER")
+    dbuser = os.getenv("DBUSER")
     password = os.getenv("PASSWORD")
     port = os.getenv("PORT")
 
@@ -38,7 +38,7 @@ def get_connection():
         conn = psycopg2.connect(
             host=host,
             dbname=dbname,
-            user=user,
+            user=dbuser, # renamed to dbuser due to issues with vm
             password=password,
             port=port
         )
