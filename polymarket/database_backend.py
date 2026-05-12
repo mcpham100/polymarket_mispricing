@@ -1,7 +1,7 @@
 
 '''
-Backend connecting the PostgreSQL databse to the data collection pipeline.
-Provides functions to establish connections and perform SQL operations on polymarket_db database.
+Backend that connects the PostgreSQL databse to the data collection pipeline.
+Creates functions to establish connections and perform SQL operations on polymarket_db database.
 ''' 
 
 # importing libraries
@@ -14,14 +14,14 @@ import logging
 
 def get_connection():
     '''
-    Establishes and returns a connection to the PostgreSQL database.
+    Makes and returns a connection to the PostgreSQL database.
     
     Loads credentials from a .env file to avoid hardcoding sensitive information.
-    Exits the program if a connection cannot be established.
+    If a connection cannot be established, it exits the program
     
     Returns:
-        conn (psycopg2.connection): Active database connection object to be 
-        passed into insert and query functions.
+        conn (psycopg2.connection): active database connection object to be 
+        passed into insert and query functions
     '''
     # load .env file; accesses secret/information not wanted to be pushed into repo
     load_dotenv()
@@ -38,7 +38,7 @@ def get_connection():
         conn = psycopg2.connect(
             host=host,
             dbname=dbname,
-            user=dbuser, # renamed to dbuser due to issues with vm
+            user=dbuser, # renamed due to issues with vm
             password=password,
             port=port
         )
@@ -57,16 +57,16 @@ def insert_market(conn, market_data):
     '''
     Inserts a single market record into the markets table.
     
-    Skips insertion silently if the market_id already exists (ON CONFLICT DO NOTHING),
-    preventing duplicate entries across collection runs.
+    Silently skips insertion if the market_id already exists, preventing duplicates
+    in collection runs.
 
     Args:
-        conn (psycopg2.connection): Active database connection from get_connection().
-        market_data (dict): Market metadata with keys:
-            - market_id (str): Unique Polymarket market identifier
-            - question (str): The market's question text
-            - category (str or None): Market category, currently None pending implementation
-            - end_date (str): Market resolution date from Polymarket
+        conn (psycopg2.connection): active database connection from get_connection()
+        market_data (dict): market metadata with keys:
+            - market_id (str): unique Polymarket market identifier
+            - question (str): the market's question text
+            - category (str or None): market category, currently None pending implementation
+            - end_date (str): market resolution date from Polymarket
     '''
     # conn.cursor will return a cursor object, you can use this query to perform queries
     cursor = conn.cursor()
@@ -100,18 +100,18 @@ def insert_snapshot(conn, snapshot_data):
     '''
     Inserts a single price snapshot into the snapshots table.
     
-    Called every collection run (~5 min intervals) per market to build
+    Called every collection run (~ every 5 min) for each market to build
     the time-series data used for mispricing decay analysis.
 
     Args:
-        conn (psycopg2.connection): Active database connection from get_connection().
-        snapshot_data (dict): Snapshot data with keys:
-            - market_id (str): Foreign key referencing markets table
-            - yes_price (float): Midpoint price of the YES outcome token from CLOB API
-            - no_price (float): Midpoint price of the NO outcome token from CLOB API
-            - volume (float): Total trading volume of the market
-            - liquidity (float): Current liquidity of the market
-            - spread (float): Bid-ask spread of the market
+        conn (psycopg2.connection): active database connection from get_connection()
+        snapshot_data (dict): snapshot data with keys:
+            - market_id (str): foreign key referencing markets table
+            - yes_price (float): midpoint price of the YES outcome token from CLOB API
+            - no_price (float): midpoint price of the NO outcome token from CLOB API
+            - volume (float): total trading volume of the market
+            - liquidity (float): current liquidity of the market
+            - spread (float): bid-ask spread of the market
     '''
     # conn.cursor will return a cursor object, you can use this query to perform queries
     cursor = conn.cursor()
@@ -141,18 +141,18 @@ def insert_snapshot(conn, snapshot_data):
 
 def get_recent_snapshots(conn, market_id):
     '''
-    Retrieves the 100 most recent snapshots for a given market.
+    Gets last 100 snapshots for a given market.
     
     Used by misprice_detector.py to analyze price history and model
     mispricing decay curves over time.
 
     Args:
-        conn (psycopg2.connection): Active database connection from get_connection().
-        market_id (str): Unique Polymarket market identifier to query snapshots for.
+        conn (psycopg2.connection): active database connection from get_connection()
+        market_id (str): unique Polymarket market identifier to query snapshots for
 
     Returns:
-        list of tuples: Up to 100 rows from the snapshots table ordered by
-        most recent timestamp first. Returns None if an error occurs.
+        list of tuples: up to 100 rows from the snapshots table ordered by
+        most recent timestamp first. Returns None if an error occurs
     '''
 
     cursor = conn.cursor()

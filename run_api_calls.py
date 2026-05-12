@@ -1,7 +1,7 @@
 
 '''
-Data pipeline script. Ran on VM so that program is not required to constantly be ran locally. 
-Takes snapshots of data every 5 minutes.
+Data pipeline script. Ran on VM so that program is not required to constantly be run locally. 
+Snapshots data every 5 min
 '''
 
 # import libraries
@@ -18,7 +18,7 @@ logging.basicConfig(filename='collector.log', format='%(asctime)s %(levelname)s 
 
 def main():
     '''
-    Script that runs collect every 5 minutes.
+    Script that runs collect every 5 min.
     Only ends with keyboardInterruption exception.
     '''
 

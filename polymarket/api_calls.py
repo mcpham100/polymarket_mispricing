@@ -2,12 +2,12 @@
 '''
 API calls to Polymarket's Gamma API and CLOB API
 
-Gamma API: contains all information regarding market data; markets, events, tags, comments etc. Markets most relevant ->
-broken down into what we want like what markets exist, token Ids, dates, liquidity, spread, volume, outcome prices
+Gamma API: contains all information about market data (markets, events, tags, comments, etc). We break down most relevant
+markets into what we want (ex: what markets exist, token ids, dates, liquidity, spread, volume, outcome prices)
 
-CLOB (Central Order Book) API: orderbook data; most relevant real-time data via /midpoint endpoint; price history via /prices-history
+CLOB (Central Order Book) API: orderbook data; most relevant real-time data from /midpoint endpoint; price history from /prices-history
 
-Builds the logic to also store the API calls into the database.
+Builds the logic to store the API calls into the database.
 '''
 
 # importing libraries
@@ -25,6 +25,20 @@ logging.basicConfig(filename='collector.log', format='%(asctime)s %(levelname)s 
 
 # max_pages paramater used in testing; not actually used in deployment
 def gamma_markets(max_pages=None):
+    """
+    A generator that grabs active market metadata from Polymarket Gamma API.
+
+    Numbers pages through the /markets/keyset endpoint to get info 
+    like questions, token ids, and current volume or liquidity.
+
+    Args:
+        max_pages (int, optional): the max number of pages to retrieve.
+            used to limit data during testing. Defaults to None (all pages)
+
+    Yields:
+        list[tuple]: a list of tuples with market data:
+            (market_id, question, category, liquidity, volume, spread, end_date, tokens)
+    """
     # define next_cursor (part of Gamma API to be used to load next page)
     next_cursor = None
     page_count = 0
@@ -34,7 +48,7 @@ def gamma_markets(max_pages=None):
         # buld market_data
         market_data = list()
 
-        # additional parameters per Polymarket's API documentation
+        # additional params per Polymarket's API documentation
         params={"active": "true", "closed": "false", "limit": "100"}
         
         # updates params if it's not the first call
@@ -58,7 +72,7 @@ def gamma_markets(max_pages=None):
             markets = response_json['markets']
             next_cursor = response_json['next_cursor']
 
-            # loop through the markets of the page
+            # loop through markets of the page
             for m in markets:
                 try:
                     # buld market_data; default values for floats if not found
@@ -70,11 +84,11 @@ def gamma_markets(max_pages=None):
                     volume = m.get('volume', 0.0)
                     spread = m.get('spread', 0.0)
                     end_date = m.get('endDate', None)
-                    tokens = json.loads(m['clobTokenIds']) # convert tokens to a list
+                    tokens = json.loads(m['clobTokenIds']) # convert tokens to list
 
                     market_data.append((market_id, question, category, liquidity, volume, spread, end_date, tokens))
                 
-                # error if data not found or can't be decoded (not proper JSON format) or found, log error
+                # error if data not found or can't be decoded (improper JSON format) or found, log error
                 except (KeyError, TypeError, json.JSONDecodeError) as e:
                     logging.error(f'Error appending market: {e}')
 
@@ -85,7 +99,7 @@ def gamma_markets(max_pages=None):
             if max_pages is not None and page_count >= max_pages:
                 break
 
-            # break out of loop once reaching the last page
+            # break out of loop once it reaches the last page
             if not next_cursor:
                 break
         
@@ -97,10 +111,22 @@ def gamma_markets(max_pages=None):
     
 
 def clob_midpoints(tokens):
- 
+    """
+    Gets real-time midpoint prices for a list of token ids from CLOB API.
+
+    The function flattens the input tokens and processes them in groups of 50 
+    to follow API's payload limits.
+
+    Args:
+        tokens (list[list[str]]): a nested list of token ids
+
+    Returns:
+        dict: a dictionary mapping token_id strings to their float midpoint prices.
+            returns an empty dictionary if request fails
+    """
     # flatten tokens into a string to be passed as a param of a single string in CLOB api call
     tokens_str = [token for pair in tokens for token in pair]
-    token_chunk = [tokens_str[i : i+ 50] for i in range(0, len(tokens_str), 50)] # split into chunks to prevent a call too massive
+    token_chunk = [tokens_str[i : i+ 50] for i in range(0, len(tokens_str), 50)] # split into chunks to prevent too large of a call
     token_prices = dict()
 
     try:
@@ -108,13 +134,13 @@ def clob_midpoints(tokens):
         for chunks in token_chunk:
             response = requests.post(
                     "https://clob.polymarket.com/midpoints",
-                    json=[{"token_id": token} for token in chunks],
-                    timeout=10) # add a timeout to prevent connections waiting indefinitely # token_ids takes in a list of strings
+                    json=[{"token_id": token} for token in chunks], # token_id takes in a list of strings
+                    timeout=10) # add a timeout to prevent connections waiting indefinitely
             
             # check for response issues
             response.raise_for_status()
 
-            # merging a dictionary with recent calls
+            # merging dictionary with recent calls
             token_prices |= response.json()
             time.sleep(0.5) # prevent connection resets
             
@@ -126,21 +152,35 @@ def clob_midpoints(tokens):
     
 # max_pages paramater used in testing; not actually used in deployment
 def collect(conn, max_pages=None):
-    # call Gamma API to get market data
+    """
+    Organizes the full data collection process for both Gamma and CLOB APIs.
+
+    Grabs market metadata, updates the market registry in the 
+    database, retrieves real-time pricing, and saves a point-in-time snapshot 
+    of market liquidity and volume.
+
+    Args:
+        conn (sqlite3.Connection): the database connection object
+        max_pages (int, optional): the max number of Gamma API pages to process
+
+    Returns:
+        None
+    """
+    # getting market data through Gamma API
     for page in gamma_markets(max_pages=max_pages):
 
-        tokens = [] # batch of tokens for each page
+        tokens = [] # list of tokens for each page
         # loop through each market of the page
         for market in page:
 
-            # build market_data
-            market_id  = market[0] # get market_id
+            # get market data
+            market_id  = market[0] # get market id
             q = market[1] # get question
             cat = market[2] # get category
-            end = market[6] # get end_date
+            end = market[6] # get end date
             market_data = {'market_id': market_id, 'question': q, 'category': cat, 'end_date': end}
 
-            # insert market data into the market table from the polymarket_db
+            # insert market data into market table from polymarket_db
             db.insert_market(conn, market_data)
 
             # build list of tokens for the entire page
@@ -156,7 +196,7 @@ def collect(conn, max_pages=None):
                 logging.error(f'Casting prices error after CLOB api call: {e}')
                 continue
             
-            # build snapshot data
+            # creating snapshot data
             market_id  = market[0]
             liquidity = market[3]
             volume = market[4]
