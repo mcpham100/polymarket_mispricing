@@ -29,6 +29,10 @@ def group_snapshots_into_events(df):
     this allows us to record tracking start time, peak friction, and decay speed for
     one event group to prepare for analysis and modeling
     """
+    # safety check
+    if df.empty or 'is_mispriced' not in df.columns:
+        return pd.DataFrame()
+
     # filter to only have rows that crossed threshold
     mispriced_df = df[df['is_mispriced'] == True].copy()
     
@@ -44,24 +48,23 @@ def group_snapshots_into_events(df):
     mispriced_df['time_diff'] = mispriced_df.groupby('market_id')['timestamp'].diff()
     
     # if the gap btwn snapshots is >7 min (420s),
-    # it means the previous mispricing ended, and that this is a new event
-    is_new_event = (mispriced_df['time_diff'].isnull()) | (mispriced_df['time_diff'].dt.total_seconds() > 420)
+    # it means the previous mispricing event ended, and that this is a new event
+    # we choose 7 min bc we capture snapshots every 5 min and we are giving
+    # a 2 min safety buffer for VM execution drift
+    mispriced_df['is_new_event'] = (mispriced_df['time_diff'].isnull()) | (mispriced_df['time_diff'].dt.total_seconds() > 420)
     
     # create a tracking id for each continuous window of mispricing
-    mispriced_df['event_id'] = is_new_event.cumsum()
+    mispriced_df['event_id'] = mispriced_df.groupby('market_id')['is_new_event'].cumsum()
     
     # aggregate rows into unique analytical events
-    events = mispriced_df.groupby('event_id').agg(
-        market_id=('market_id', 'first'),
+    events = mispriced_df.groupby(['market_id', 'event_id']).agg(
         start_time=('timestamp', 'min'),
         end_time=('timestamp', 'max'),
         initial_deviation=('deviation', 'first'),
-        peak_deviation=('deviation', 'max'),
-        starting_volume=('volume', 'first'),
-        snapshot_count=('market_id', 'count')
-    ).reset_index(drop=True)
+        peak_deviation=('deviation', 'max')
+    ).reset_index(drop=False)
     
     # calculate duration of the mispricing in minutes
-    events['duration_min'] = (events['end_time'] - events['start_time']).dt.total_seconds() / 60.0
+    events['duration'] = (events['end_time'] - events['start_time']).dt.total_seconds() / 60.0
     
     return events

@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS mispricing_events(
     market_id TEXT REFERENCES markets(market_id),
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, --start of mispricing
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, --end of mispricing (last flagged snapshot timestamp)
-    peak_deviation FLOAT
+    peak_deviation FLOAT,
+    intial_deviation FLOAT,
+    duration FLOAT
 );
 
 
