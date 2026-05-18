@@ -2,8 +2,9 @@ CREATE TABLE IF NOT EXISTS markets( --IF NOT EXISTS allows for running file mult
     market_id TEXT PRIMARY KEY, --API treats market_id as a string despite storing only ints
     question TEXT,
     category TEXT,
-    end_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP 
+    end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL  --market end date
 );
+
 
 CREATE TABLE IF NOT EXISTS snapshots(
     id SERIAL PRIMARY KEY, --serial datatype increments each row
@@ -13,18 +14,19 @@ CREATE TABLE IF NOT EXISTS snapshots(
     liquidity FLOAT,
     volume FLOAT,
     spread FLOAT,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, --default now; no need to pass param everytime
-    end_date TIMESTAMP WITH TIME ZONE
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP --default now; no need to pass param everytime
 );
+
 
 CREATE TABLE IF NOT EXISTS mispricing_events(
     event_id SERIAL PRIMARY KEY,
     market_id TEXT REFERENCES markets(market_id),
-    snapshot_id INTEGER REFERENCES snapshots(id),
-    start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, --
-    deviation FLOAT
-    --consider end_time in the future; end_time will come from API call not DEFAULT
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, --start of mispricing
+    end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, --end of mispricing (last flagged snapshot timestamp)
+    peak_deviation FLOAT
 );
+
 
 -- to run: psql -U postgres -d polymarket_db -f data/schema.sql
 --Open postgresql, login as postgres, connect to polymarket_db, runs this file
+
