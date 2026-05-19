@@ -66,5 +66,5 @@ def group_snapshots_into_events(df):
     
     # calculate duration of the mispricing in minutes
     events['duration'] = (events['end_time'] - events['start_time']).dt.total_seconds() / 60.0
-    
-    return events
+
+    return events # returns a Pandas Series

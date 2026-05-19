@@ -23,16 +23,22 @@ def main():
             df = pd.read_sql(query, conn)
             
             # run detection logic
-            results = detector.find_mispricings(df, threshold=0.001)
+            # first find misprings
+            mispricings = detector.find_mispricings(df, threshold=0.001)
+            # then group events together
+            grouped = detector.group_snapshots_into_events(mispricings)
             
-            if not results.empty:
-                # handle results (print or save to a new 'mispricings' table)
-                print(f"Detected {len(results)} mispriced events.")
+            if not grouped.empty:
+                # add each event individually by looping through the grouped df; 1 row = 1 distinct event
+                for index, event in grouped:
+                    db.insert_event(conn, event)
+
                 # results.to_sql('mispriced_events', conn, if_exists='append', index=False)
-                logging.info(f"Detected {len(results)} mispricings.")
+                logging.info(f"Detected {len(grouped)} mispricings.") # add log to note that detection is working
             
         except Exception as e:
             logging.error(f"Detector error: {e}")
+
         finally:
             if conn:
                 conn.close()

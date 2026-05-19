@@ -24,11 +24,10 @@ CREATE TABLE IF NOT EXISTS mispricing_events(
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, --start of mispricing
     end_time TIMESTAMP WITH TIME ZONE DEFAULT NULL, --end of mispricing (last flagged snapshot timestamp)
     peak_deviation FLOAT,
-    intial_deviation FLOAT,
+    initial_deviation FLOAT,
     duration FLOAT
 );
 
 
 -- to run: psql -U postgres -d polymarket_db -f data/schema.sql
 --Open postgresql, login as postgres, connect to polymarket_db, runs this file
-

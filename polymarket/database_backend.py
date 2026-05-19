@@ -139,43 +139,46 @@ def insert_snapshot(conn, snapshot_data):
         # close to prevent memory leaks (deletes cursor object)
         cursor.close()
 
-def get_recent_snapshots(conn, market_id):
+def insert_event(conn, event):
     '''
-    Gets last 100 snapshots for a given market.
+    Inserts an event into the mispricing_events table.
     
-    Used by misprice_detector.py to analyze price history and model
-    mispricing decay curves over time.
+    Called every collection run (~ every 5 min) for each market to build
+    the time-series data used for mispricing decay analysis.
 
     Args:
         conn (psycopg2.connection): active database connection from get_connection()
-        market_id (str): unique Polymarket market identifier to query snapshots for
-
-    Returns:
-        list of tuples: up to 100 rows from the snapshots table ordered by
-        most recent timestamp first. Returns None if an error occurs
+        event (Pd.Series): event data for a detected mispricing:
+            - market_id (str): foreign key referencing markets table
+            - start_time (float): the snapshot time at which the deviation was first detected
+            - end_time (float): the last snapshot of the event with a deviation
+            - peak_deviation (float): max deviation throughout the event
+            - initial_deviation (float): deviation first captured in the initial snapshot detecting the mispricing
+            - duration (float): how long the mispricing event lasted; end_time - smart_time
     '''
-
+    # create connection
     cursor = conn.cursor()
 
     try:
-        # query to read most recent 100 rows from snapshots
+    # cursor.execute(SQL) allows for SQL queries within Python
+    # query to add a row with given attributes
         cursor.execute("""
-                       SELECT * 
-                       FROM snapshots 
-                       WHERE market_id = %s 
-                       ORDER BY timestamp DESC
-                       LIMIT 100
-                        """,
-                        (market_id, )) # pass as a tuple
+                    INSERT INTO mispricing_events (market_id, start_time, end_time, peak_deviation, 
+                       initial_deviation, duration)
+                    VALUES (%(m_id)s, %(start)s, %(end)s, %(peak)s, %(init)s, %(duration)s)
+                    """,
+                    {'m_id': event["market_id"], 'start': event["start_time"], 'end': event["end_time"], 
+                     'peak': event["peak_deviation"], 'init': event["initial_deviation"], 'duration': event["duration"]})
         
-        # return the read rows
-        return cursor.fetchall()
-    
-    # error with reading
+        # %s serves as placeholders value; pass in a dict as second arg to pass in actual value from python
+        
+        conn.commit() # no need to check for conflicts as only one write at a time (no concurrency occuring)
+
+    # raise error and rollback
     except psycopg2.Error as e:
-        logging.error(f'Accessing recent snapshots failure: {e}')
+        logging.error(f'Inserting into mispricing_events failure: {e}')
         conn.rollback()
 
     finally:
-        # close to prevent memory leaks
+        # close to prevent memory leaks (deletes cursor object)
         cursor.close()
