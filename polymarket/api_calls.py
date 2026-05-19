@@ -1,4 +1,3 @@
-
 '''
 API calls to Polymarket's Gamma API and CLOB API
 
@@ -32,8 +31,7 @@ def gamma_markets(max_pages=None):
     like questions, token ids, and current volume or liquidity.
 
     Args:
-        max_pages (int, optional): the max number of pages to retrieve.
-            used to limit data during testing. Defaults to None (all pages)
+        max_pages (int, optional): the max number of pages to retrieve; used only in testing. Defaults to None (all pages)
 
     Yields:
         list[tuple]: a list of tuples with market data:
@@ -45,7 +43,7 @@ def gamma_markets(max_pages=None):
 
     # loop through all pages 
     while True:
-        # buld market_data
+        # build market_data
         market_data = list()
 
         # additional params per Polymarket's API documentation
@@ -75,11 +73,11 @@ def gamma_markets(max_pages=None):
             # loop through markets of the page
             for m in markets:
                 try:
-                    # buld market_data; default values for floats if not found
+                    # build market_data; default values for floats if not found
                     # keep market_id, question, and tokens indexing so it can trigger the except error
                     market_id = m['id']
                     question = m['question']
-                    category = None
+                    category = None # needs backfilling later; from /tags endpoint
                     liquidity = m.get('liquidity', 0.0)
                     volume = m.get('volume', 0.0)
                     spread = m.get('spread', 0.0)
@@ -115,7 +113,7 @@ def clob_midpoints(tokens):
     Gets real-time midpoint prices for a list of token ids from CLOB API.
 
     The function flattens the input tokens and processes them in groups of 50 
-    to follow API's payload limits.
+    to follow API's limits.
 
     Args:
         tokens (list[list[str]]): a nested list of token ids
@@ -140,7 +138,7 @@ def clob_midpoints(tokens):
             # check for response issues
             response.raise_for_status()
 
-            # merging dictionary with recent calls
+            # merging dictionary with recent calls; |= short-hand for token_prices = token_prices | response.json()
             token_prices |= response.json()
             time.sleep(0.5) # prevent connection resets
             
@@ -155,13 +153,12 @@ def collect(conn, max_pages=None):
     """
     Organizes the full data collection process for both Gamma and CLOB APIs.
 
-    Grabs market metadata, updates the market registry in the 
-    database, retrieves real-time pricing, and saves a point-in-time snapshot 
-    of market liquidity and volume.
+    Grabs market metadata, updates the market table in the 
+    database, retrieves real-time prices, and add snapshot of market data in snapshots table.
 
     Args:
-        conn (sqlite3.Connection): the database connection object
-        max_pages (int, optional): the max number of Gamma API pages to process
+        conn (psycopg2.Connection): the database connection object
+        max_pages (int, optional): the max number of Gamma API pages to process; only used in testing. Default to None
 
     Returns:
         None
@@ -191,7 +188,9 @@ def collect(conn, max_pages=None):
         for market in page:
             try:
                 yes_price = float(token_prices.get(market[7][0])) # look up from CLOB using yes_token id
-                no_price = float(token_prices.get(market[7][1]))
+                no_price = float(token_prices.get(market[7][1])) # CLOB with no_tokein id
+            
+            # raise error if can't be casted; typically due to no value returning
             except TypeError as e:
                 logging.error(f'Casting prices error after CLOB api call: {e}')
                 continue
@@ -204,4 +203,5 @@ def collect(conn, max_pages=None):
             snapshot_data = {'market_id': market_id, 'yes_price': yes_price, 'no_price': no_price, 
                              'liquidity': liquidity, 'volume': volume, 'spread': spread}
 
+            # insert snapshot into snapshots table
             db.insert_snapshot(conn, snapshot_data)

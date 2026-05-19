@@ -1,11 +1,10 @@
-
 '''
 Backend that connects the PostgreSQL databse to the data collection pipeline.
-Creates functions to establish connections and perform SQL operations on polymarket_db database.
+Creates functions to establish connections and perform psql operations on polymarket_db database.
 ''' 
 
 # importing libraries
-import psycopg2
+import psycopg2 # adapter to connect python to psql
 import sys
 from dotenv import load_dotenv
 import os
@@ -18,6 +17,9 @@ def get_connection():
     
     Loads credentials from a .env file to avoid hardcoding sensitive information.
     If a connection cannot be established, it exits the program
+    
+    Args:
+        None
     
     Returns:
         conn (psycopg2.connection): active database connection object to be 
@@ -65,7 +67,7 @@ def insert_market(conn, market_data):
         market_data (dict): market metadata with keys:
             - market_id (str): unique Polymarket market identifier
             - question (str): the market's question text
-            - category (str or None): market category, currently None pending implementation
+            - category (str or None): market category, currently None; needs to be backfilled via /tags from Gamma API
             - end_date (str): market resolution date from Polymarket
     '''
     # conn.cursor will return a cursor object, you can use this query to perform queries
@@ -100,8 +102,7 @@ def insert_snapshot(conn, snapshot_data):
     '''
     Inserts a single price snapshot into the snapshots table.
     
-    Called every collection run (~ every 5 min) for each market to build
-    the time-series data used for mispricing decay analysis.
+    Called every collection run (~ every 5 min) for each market.
 
     Args:
         conn (psycopg2.connection): active database connection from get_connection()
@@ -112,6 +113,9 @@ def insert_snapshot(conn, snapshot_data):
             - volume (float): total trading volume of the market
             - liquidity (float): current liquidity of the market
             - spread (float): bid-ask spread of the market
+    
+    Return:
+        None
     '''
     # conn.cursor will return a cursor object, you can use this query to perform queries
     cursor = conn.cursor()
@@ -142,9 +146,6 @@ def insert_snapshot(conn, snapshot_data):
 def insert_event(conn, event):
     '''
     Inserts an event into the mispricing_events table.
-    
-    Called every collection run (~ every 5 min) for each market to build
-    the time-series data used for mispricing decay analysis.
 
     Args:
         conn (psycopg2.connection): active database connection from get_connection()
@@ -155,6 +156,9 @@ def insert_event(conn, event):
             - peak_deviation (float): max deviation throughout the event
             - initial_deviation (float): deviation first captured in the initial snapshot detecting the mispricing
             - duration (float): how long the mispricing event lasted; end_time - smart_time
+    
+    Return:
+        None
     '''
     # create connection
     cursor = conn.cursor()

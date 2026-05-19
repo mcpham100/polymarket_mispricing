@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS markets( --IF NOT EXISTS allows for running file mult
     market_id TEXT PRIMARY KEY, --API treats market_id as a string despite storing only ints
     question TEXT,
     category TEXT,
-    end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL  --market end date
+    end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL,  --market end date
+    neg_risk BOOLEAN 
 );
 
 

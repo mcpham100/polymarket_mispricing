@@ -1,6 +1,5 @@
-
 '''
-Data pipeline script. Ran on VM so that program is not required to constantly be run locally. 
+Data pipeline script. Ran on VM (virtual machine) so that program is not required to constantly be run locally. 
 Snapshots data every 5 min
 '''
 
@@ -9,7 +8,7 @@ import logging
 import time
 import sys
 
-# import api_calls from polymarket folder
+# import api_calls and database_backend from polymarket folder
 from polymarket import api_calls
 from polymarket import database_backend as db
 
@@ -20,9 +19,15 @@ def main():
     '''
     Script that runs collect every 5 min.
     Only ends with keyboardInterruption exception.
+
+    Args:
+        None
+
+    Return:
+        None
     '''
 
-    # loops forever until keyboard interruption
+    # loops forever until keyboard interruption (ctrl + C or delete)
     while True:
         
         # initialize conn for final guard
