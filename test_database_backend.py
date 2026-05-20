@@ -131,34 +131,43 @@ def test_insert_snapshot_db_error():
     mock_conn.commit.assert_not_called()
     mock_cursor.close.assert_called_once()
 
-
 # ──────────────────────────────────────────────
-# get_recent_snapshots()
+# insert_event()
 # ──────────────────────────────────────────────
 
-def test_get_recent_snapshots_success():
-    '''get_recent_snapshots() queries with correct market_id and returns fetchall result.'''
+def sample_event_data():
+    return {
+        'market_id': 'mkt_001',
+        'start_time': '2026-05-01T12:00:00Z',
+        'deviation': 0.05,
+        'num_snapshots': 3
+    }
+
+
+def test_insert_event_success():
+    '''insert_event() calls execute and commit with correct event data.'''
     mock_conn, mock_cursor = make_mock_conn()
-    fake_rows = [(1, 'mkt_001', 0.55, 0.45, 5000.0, 10000.0, 0.01, '2026-05-06')]
-    mock_cursor.fetchall.return_value = fake_rows
+    data = sample_event_data()
 
-    result = db.get_recent_snapshots(mock_conn, 'mkt_001')
+    db.insert_event(mock_conn, data)
 
     mock_cursor.execute.assert_called_once()
-    # verify market_id passed correctly into query
-    call_args = mock_cursor.execute.call_args[0][1]
-    assert call_args == ('mkt_001',)
-    assert result == fake_rows
+    mock_conn.commit.assert_called_once()
     mock_cursor.close.assert_called_once()
 
+    call_args = mock_cursor.execute.call_args[0][1]
+    assert call_args['m_id'] == 'mkt_001'
+    assert call_args['deviation'] == 0.05
+    assert call_args['num_s'] == 3
 
-def test_get_recent_snapshots_db_error():
-    '''get_recent_snapshots() returns None and calls rollback on psycopg2.Error.'''
+
+def test_insert_event_db_error():
+    '''insert_event() calls rollback and closes cursor on psycopg2.Error.'''
     mock_conn, mock_cursor = make_mock_conn()
-    mock_cursor.execute.side_effect = psycopg2.Error('query failed')
+    mock_cursor.execute.side_effect = psycopg2.Error('event insert failed')
 
-    result = db.get_recent_snapshots(mock_conn, 'mkt_001')
+    db.insert_event(mock_conn, sample_event_data())
 
-    assert result is None
     mock_conn.rollback.assert_called_once()
+    mock_conn.commit.assert_not_called()
     mock_cursor.close.assert_called_once()

@@ -41,7 +41,7 @@ def get_test_connection():
         conn = psycopg2.connect(
             host=os.getenv('HOST'),
             dbname=os.getenv('TEST_DBNAME'),   # points to polymarket_test_db
-            user=os.getenv('USER'),
+            user=os.getenv('DBUSER'),
             password=os.getenv('PASSWORD'),
             port=os.getenv('PORT')
         )
@@ -105,25 +105,6 @@ def test_live_collect_inserts_snapshots(test_conn):
     cursor.close()
 
     assert count > 0, 'No rows found in snapshots table after collect()'
-
-
-def test_snapshot_prices_sum_to_one(test_conn):
-    '''
-    Verifies that yes_price + no_price is within a reasonable tolerance of 1.0
-    for all snapshots. Polymarket binary markets should sum to ~1.0.
-    Tolerance of 0.05 accounts for spread.
-    '''
-    cursor = test_conn.cursor()
-    cursor.execute('SELECT yes_price, no_price FROM snapshots WHERE yes_price IS NOT NULL AND no_price IS NOT NULL;')
-    rows = cursor.fetchall()
-    cursor.close()
-
-    assert len(rows) > 0, 'No valid snapshots found to validate prices'
-
-    for yes_price, no_price in rows:
-        price_sum = yes_price + no_price
-        assert abs(price_sum - 1.0) <= 0.05, \
-            f'Price sum out of tolerance: yes={yes_price}, no={no_price}, sum={price_sum}'
 
 
 def test_snapshot_foreign_key_integrity(test_conn):

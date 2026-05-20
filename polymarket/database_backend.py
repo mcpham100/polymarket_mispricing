@@ -152,10 +152,8 @@ def insert_event(conn, event):
         event (Pd.Series): event data for a detected mispricing:
             - market_id (str): foreign key referencing markets table
             - start_time (float): the snapshot time at which the deviation was first detected
-            - end_time (float): the last snapshot of the event with a deviation
-            - peak_deviation (float): max deviation throughout the event
-            - initial_deviation (float): deviation first captured in the initial snapshot detecting the mispricing
-            - duration (float): how long the mispricing event lasted; end_time - smart_time
+            - deviation (float): max deviation throughout the event
+            - num_snapshots (int): # of mispriced snapshots within this market (same market id)
     
     Return:
         None
@@ -167,12 +165,11 @@ def insert_event(conn, event):
     # cursor.execute(SQL) allows for SQL queries within Python
     # query to add a row with given attributes
         cursor.execute("""
-                    INSERT INTO mispricing_events (market_id, start_time, end_time, peak_deviation, 
-                       initial_deviation, duration)
-                    VALUES (%(m_id)s, %(start)s, %(end)s, %(peak)s, %(init)s, %(duration)s)
+                    INSERT INTO mispricing_events (market_id, start_time, deviation, num_snapshots)
+                    VALUES (%(m_id)s, %(start)s, %(deviation)s, %(num_s)s)  
                     """,
-                    {'m_id': event["market_id"], 'start': event["start_time"], 'end': event["end_time"], 
-                     'peak': event["peak_deviation"], 'init': event["initial_deviation"], 'duration': event["duration"]})
+                    {'m_id': event["market_id"], 'start': event["start_time"], 
+                     'deviation': event["deviation"], 'num_s': event["num_snapshots"]})
         
         # %s serves as placeholders value; pass in a dict as second arg to pass in actual value from python
         

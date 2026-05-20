@@ -13,38 +13,47 @@ from polymarket import detector
 logging.basicConfig(filename='detector.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 def main():
-    while True:
         conn = None
         try:
             conn = db.get_connection() # using existing db logic
             
-            # pull the most recent snapshots from the db
-            query = "SELECT market_id, yes_price, no_price, timestamp, volume FROM snapshots"
+            # pull snapshots from the db
+            query = "SELECT m.market_id, m.neg_risk, s.yes_price, s.no_price, s.timestamp, s.liquidity " \
+            "FROM snapshots AS s " \
+            "JOIN markets AS m ON s.market_id = m.market_id " \
+            "WHERE neg_risk = False AND liquidity >= 500"
+
+            # create df containing all the snapshots
             df = pd.read_sql(query, conn)
             
-            # run detection logic
-            # first find misprings
-            mispricings = detector.find_mispricings(df, threshold=0.001)
-            # then group events together
-            grouped = detector.group_snapshots_into_events(mispricings)
+            # run detection logic over all the snapshots
+            mispricings = detector.detect_mispricings (df, threshold=0.001)
             
-            if not grouped.empty:
-                # add each event individually by looping through the grouped df; 1 row = 1 distinct event
-                for index, event in grouped:
+            # filter to only be mispriced columns
+            mispricings = mispricings[mispricings['is_mispriced'] == True]
+
+            # ensure mispricings isn't empty to prevent errors when executing other ops
+            if not mispricings.empty:
+                # create num_snapshots column
+                # compute num_snapshots per market_id and retain original shape
+                mispricings['num_snapshots'] = mispricings.groupby('market_id')['is_mispriced'].transform('sum')
+
+                # loop through each mispriced event and insert it into mispricing_events
+                for index, event in mispricings.iterrows():
                     db.insert_event(conn, event)
 
-                # results.to_sql('mispriced_events', conn, if_exists='append', index=False)
-                logging.info(f"Detected {len(grouped)} mispricings.") # add log to note that detection is working
-            
+                # log successful insertions
+                logging.info(f"Detected {len(mispricings)} mispricings.")
+
+        # raise error if no mispricings were detected  
         except Exception as e:
             logging.error(f"Detector error: {e}")
 
+        # close connection to prevent memory leaks
         finally:
             if conn:
                 conn.close()
-        
-        # wait before checking again (every 5 minutes)
-        time.sleep(300)
 
+# execute main function
 if __name__ == '__main__':
     main()
