@@ -21,7 +21,7 @@ def main():
             # add COUNT over each market to improve compile speed on vm
             # reduce the size of df significantly when read_sql is executed, preventing out of memory error with 20 million+ rows snapshots table
             query = "" \
-            "SELECT m.market_id, m.neg_risk, s.yes_price, s.no_price, s.timestamp, s.liquidity, " \
+            "SELECT m.market_id, m.neg_risk, s.yes_price, s.no_price, s.timestamp AS start_time, s.liquidity, " \
             "COUNT (*) OVER (PARTITION BY s.market_id) AS num_snapshots, " \
             "ABS(s.yes_price + s.no_price - 1) as deviation " \
             "FROM snapshots AS s " \
