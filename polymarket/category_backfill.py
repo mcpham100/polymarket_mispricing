@@ -64,7 +64,7 @@ def get_category(mispricing_ids, max_pages=None):
             # break down response into markets and next_cursor components
             response_json = response.json()
             markets = response_json['markets']
-            next_cursor = response_json['next_cursor']
+            next_cursor = response_json.get('next_cursor', None)
 
             # loop through markets of the page
             for m in markets:
