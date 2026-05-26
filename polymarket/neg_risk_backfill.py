@@ -13,7 +13,7 @@ import time
 import psycopg2
 
 # import database_backend
-from polymarket import database_backend as db
+import database_backend as db
 
 # log to catch any errors when running script
 logging.basicConfig(filename='negRiskBackfill.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
