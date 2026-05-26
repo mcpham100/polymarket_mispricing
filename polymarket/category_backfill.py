@@ -43,7 +43,7 @@ def get_category(mispricing_ids, max_pages=None):
         market_category = list()
 
         # additional params per Polymarket's API documentation
-        params={"active": "true", "closed": "false", "limit": "100"}
+        params={"limit": "100"}
         
         # updates params if it's not the first call
         if next_cursor is not None:
