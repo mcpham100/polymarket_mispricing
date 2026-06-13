@@ -138,8 +138,8 @@ def clob_midpoints(tokens):
             # check for response issues
             response.raise_for_status()
 
-            # merging dictionary with recent calls; |= short-hand for token_prices = token_prices | response.json()
-            token_prices |= response.json()
+            # merging dictionary with recent calls
+            token_prices = token_prices | response.json()
             time.sleep(0.5) # prevent connection resets
             
         return token_prices # return dict of {token_id:token_price} if no exceptions

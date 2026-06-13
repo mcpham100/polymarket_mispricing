@@ -2,8 +2,7 @@
 One-time ran script to backfill category into the markets table
 Category comes from a different endpoint: /events{id}
 {id}: comes from Gamma /markets endpoint; can be acquired via {market}[0]['events']['id]
-Category used in sub-category analysis
-No acquiring sub category due to limited dataset size (only 328 mispricing events)
+No acquiring sub category due to limited dataset size (only 328 mispricing events after liqudity and negRisk filter)
 '''
 
 # importing libraries
@@ -183,7 +182,17 @@ def category_backfill(conn, mispricing_ids, max_pages=None):
             update_category(conn, market_data)
 
 def main():
+    """
+    Main function that opens a psycopg2 connection to the database,
+    acquires ids of markets within the mispricing_events table, and backfills the category.
 
+    Args:
+        None
+    
+    Retuns:
+        None
+    """
+    
     # initialize conn for final guard
     conn = None
     

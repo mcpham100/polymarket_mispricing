@@ -166,7 +166,10 @@ def neg_risk_backfill(conn, max_pages=None):
             update_neg_risk(conn, market_data)
 
 def main():
-
+    '''
+    Main function that creates the connection to the database and calls the neg_risk_backfill(conn) function.
+    One time call to backfill negRisk attribute in the markets table.
+    '''
     # initialize conn for final guard
     conn = None
     

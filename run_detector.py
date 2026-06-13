@@ -1,6 +1,5 @@
-
 '''
-script to run mispricing detection and adding it to table
+Script to execute mispricing detection and populating mispricing_events table
 '''
 
 # importing libraries
@@ -12,6 +11,11 @@ from polymarket import database_backend as db
 logging.basicConfig(filename='detector.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 def main():
+        '''
+        Main function that runs the mispricing detection logic once.
+        Creates connection to database and executes PSQL query that detects mispriced events (detection > 0.001).
+        Filters out low liqudity markets (s.liqudity < 500) and ensures neg_risk attribute is False.
+        '''
         conn = None
         try:
             conn = db.get_connection() # using existing db logic

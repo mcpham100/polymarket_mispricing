@@ -17,7 +17,7 @@ logging.basicConfig(filename='collector.log', format='%(asctime)s %(levelname)s 
 
 def main():
     '''
-    Script that runs collect every 5 min.
+    Main function script that runs collect every 5 min.
     Only ends with keyboardInterruption exception.
 
     Args:

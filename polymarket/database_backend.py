@@ -102,11 +102,11 @@ def insert_snapshot(conn, snapshot_data):
     '''
     Inserts a single price snapshot into the snapshots table.
     
-    Called every collection run (~ every 5 min) for each market.
+    Called every every 5 min for each market.
 
     Args:
         conn (psycopg2.connection): active database connection from get_connection()
-        snapshot_data (dict): snapshot data with keys:
+        snapshot_data (dict): snapshot data with attributes:
             - market_id (str): foreign key referencing markets table
             - yes_price (float): midpoint price of the YES outcome token from CLOB API
             - no_price (float): midpoint price of the NO outcome token from CLOB API
@@ -149,7 +149,7 @@ def insert_event(conn, event):
 
     Args:
         conn (psycopg2.connection): active database connection from get_connection()
-        event (Pd.Series): event data for a detected mispricing:
+        event (dict): event data for a detected mispricing with the following attributes:
             - market_id (str): foreign key referencing markets table
             - start_time (float): the snapshot time at which the deviation was first detected
             - deviation (float): max deviation throughout the event
