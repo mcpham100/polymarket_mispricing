@@ -1,6 +1,6 @@
-
 '''
-script to run export data on vm to a csv
+One-time script to export data from the PSQL database on the VM (virtual machine) to a CSV.
+CSV used for EDA and modeling to perform recurrence classification.
 '''
 
 # importing libraries
@@ -12,6 +12,12 @@ from polymarket import database_backend as db
 logging.basicConfig(filename='export.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 def main():
+        '''
+        Main function that creates database connection then executes SQL query that selects
+        mispricing events joined on market_id and snapshot time.
+
+        Results saved in export.csv containing 328 rows, 1 row for each mispricing event.
+        '''
         conn = None
         try:
             conn = db.get_connection() # using existing db logic
